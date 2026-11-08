@@ -1,0 +1,9 @@
+card_id,player,year,set,card_type,parallel,grade,purchase_date,purchase_total,grading_cost,estimated_value,status,notes
+PE-001,Druw Jones,2023,Bowman Chrome,1st Auto,Base,PSA 8,2026-02-18,43.71,,,Owned,
+PE-002,Johnny Farmelo,2023,Bowman Draft Chrome,1st Auto,Base,PSA 10,2026-03-13,43.72,,,Owned,
+PE-003,Xavier Neyens,2025,Bowman Draft Chrome,1st Auto,Base,,2026-04-13,54.73,,,Owned,Grade assignment unconfirmed
+PE-004,Xavier Neyens,2025,Bowman Draft Chrome,1st Auto,Base,,2026-07-29,55.71,,,Owned,Grade assignment unconfirmed
+PE-005,Xavier Neyens,2025,Bowman Draft Chrome,1st Auto,Base,,,,,,Owned,Purchase and grade unconfirmed
+PE-006,Tai Peete,2023,Bowman Draft Chrome,1st Auto,Base,Raw,2026-08-04,38.52,,,Owned,
+PE-007,Tyson Lewis,2024,Bowman Draft Chrome,1st Auto,Base,Raw,2026-11-04,32.74,,,In transit,
+PE-008,Hurston Waldrep,2025,Topps Chrome Black,Auto,White Refractor /10,PSA 9,,,,,Owned,Box pull - cost allocation pending
