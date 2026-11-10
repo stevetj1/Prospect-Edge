@@ -1,0 +1,20 @@
+name: Prospect Edge Portfolio Check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  portfolio:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get project files
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Calculate portfolio totals
+        run: python portfolio_summary.py
