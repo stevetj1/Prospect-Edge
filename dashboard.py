@@ -23,7 +23,10 @@ with st.expander("Database Connection"):
         supabase.table("cards").select("id").limit(1).execute()
         st.success("Supabase connection successful!")
     except Exception:
-        st.error("Database connection failed. Check configuration.")inventory_path = Path(__file__).parent / "data" / "inventory.csv"
+        except Exception:
+    st.error("Database connection failed. Check configuration.")
+
+inventory_path = Path(__file__).parent / "data" / "inventory.csv"
 
 @st.cache_data
 def load_inventory(path):
