@@ -4,8 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 import streamlit as st
-
-st.set_page_config(
+from supabase import create_clientst.set_page_config(
     page_title="Prospect Edge",
     page_icon="⚾",
     layout="wide",
@@ -13,8 +12,16 @@ st.set_page_config(
 
 st.title("⚾ Prospect Edge")
 st.caption("Baseball Card Investment Intelligence")
-
-inventory_path = Path(__file__).parent / "data" / "inventory.csv"
+with st.expander("Database Connection"):
+    try:
+        supabase = create_client(
+            st.secrets["supabase"]["url"],
+            st.secrets["supabase"]["key"],
+        )
+        supabase.table("cards").select("id").limit(1).execute()
+        st.success("Supabase connection successful!")
+    except Exception:
+        st.error("Database connection failed. Check configuration.")inventory_path = Path(__file__).parent / "data" / "inventory.csv"
 
 @st.cache_data
 def load_inventory(path):
