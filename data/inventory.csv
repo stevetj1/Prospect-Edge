@@ -1,9 +1,17 @@
+
 card_id,player,year,set,card_type,parallel,grade,purchase_date,purchase_total,grading_cost,estimated_value,status,notes
-PE-001,Druw Jones,2023,Bowman Chrome,1st Auto,Base,PSA 8,2026-02-18,43.71,,18,Owned,
-PE-002,Johnny Farmelo,2023,Bowman Draft Chrome,1st Auto,Base,PSA 10,2026-03-13,43.72,,74,Owned,
-PE-003,Xavier Neyens,2025,Bowman Draft Chrome,1st Auto,Base,,2026-04-13,54.73,,,Owned,Grade assignment unconfirmed
-PE-004,Xavier Neyens,2025,Bowman Draft Chrome,1st Auto,Base,,2026-07-29,55.71,,,Owned,Grade assignment unconfirmed
-PE-005,Xavier Neyens,2025,Bowman Draft Chrome,1st Auto,Base,,,,,,Owned,Purchase and grade unconfirmed
-PE-006,Tai Peete,2023,Bowman Draft Chrome,1st Auto,Base,Raw,2026-08-04,38.52,,38,Owned,
-PE-007,Tyson Lewis,2024,Bowman Draft Chrome,1st Auto,Base,Raw,2026-11-04,32.74,,25,0wned,
-PE-008,Hurston Waldrep,2025,Topps Chrome Black,Auto,White Refractor /10,PSA 9,,,,150,Owned,Box pull - cost allocation pending
+PE-001,Druw Jones,2023,Bowman Chrome,1st Auto,Base,PSA 8,2026-02-18,43.71,,18,Owned,CPA-DJ; graded copy
+PE-002,Johnny Farmelo,2023,Bowman Draft Chrome,1st Auto,Base,PSA 10,2026-03-13,43.72,,74,Owned,Non-on-card auto; confirmed graded copy
+PE-003,Xavier Neyens,2025,Bowman Draft Chrome,1st Auto,Base,,2026-04-13,54.73,,,Owned,Grade assignment unresolved; one of 3 is PSA 10
+PE-004,Xavier Neyens,2025,Bowman Draft Chrome,1st Auto,Base,,2026-07-29,55.71,,,Owned,Grade assignment unresolved; one of 3 is PSA 10
+PE-005,Xavier Neyens,2025,Bowman Draft Chrome,1st Auto,Base,,2026-04-16,53.56,,,Owned,Grade assignment unresolved; one of 3 is PSA 10
+PE-006,Tai Peete,2023,Bowman Draft Chrome,1st Auto,Base,Raw,2026-08-04,38.52,,38,Owned,CDA-TP; value estimate provisional
+PE-007,Tyson Lewis,2024,Bowman Draft Chrome,1st Auto,Base,Raw,2026-11-04,32.74,,25,Owned,CPA-TL; confirm receipt; value estimate provisional
+PE-008,Hurston Waldrep,2025,Topps Chrome Black,Auto,White Refractor /10,PSA 9,,,,150,Owned,Box pull; allocation of box cost and grading cost pending; value low confidence
+PE-009,Druw Jones,2023,Bowman Chrome,1st Auto,Base,Raw,2026-03-04,38.56,,,Owned,On-card autograph with JSA certificate; verify card identity and exact date
+PE-010,Johnny Farmelo,2023,Bowman Draft Chrome,1st Auto,Base,Raw,2026-04-13,33.83,,,Owned,Signed card with paint pen; NOT the PSA 10 copy
+PE-011,Tai Peete,2023,Bowman Draft Chrome,1st Auto,Base,Raw,2026-04-17,32.79,,,Owned,CDA-TP; second copy
+PE-012,Dominic Fletcher,2019,Bowman Draft Chrome,1st Auto,Refractor /499,PSA 10,2026-02-25,31.14,,,Owned,Purchase confirmed in screenshot
+PE-013,Brennen Davis,2018,Bowman Chrome Draft,Auto,Unconfirmed,PSA 10,2026-03-05,25.79,,,Owned,Partial refund 14.86; net cost may be 10.93; confirm refund and card parallel
+PE-014,Shay Whitcomb,2023,Bowman Chrome,1st Auto,Base,Raw,2026-04-10,22.93,,,Owned,Astros; name appears Shay Whitcomb
+PE-015,Colt Emerson,2025,Bowman Draft Chrome,1st Auto,Unconfirmed,Raw,,60.21,,,Owned,Top of first screenshot; verify set and order details
