@@ -16,15 +16,15 @@ st.title("⚾ Prospect Edge")
 st.caption("Baseball Card Investment Intelligence")
 with st.expander("Database Connection"):
     try:
-        supabase = create_client(
-            st.secrets["supabase"]["url"],
-            st.secrets["supabase"]["key"],
-        )
-        supabase.table("cards").select("id").limit(1).execute()
-        st.success("Supabase connection successful!")
-    except Exception:
-        except Exception:
-    st.error("Database connection failed. Check configuration.")
+    supabase = create_client(
+        st.secrets["supabase"]["url"],
+        st.secrets["supabase"]["key"],
+    )
+    supabase.table("cards").select("id").limit(1).execute()
+    st.success("Supabase connection successful!")
+
+except Exception as e:
+    st.error(f"Database connection failed: {e}")
 
 inventory_path = Path(__file__).parent / "data" / "inventory.csv"
 
