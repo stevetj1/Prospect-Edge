@@ -33,6 +33,59 @@ col3.metric("Missing Purchase Costs", missing_costs)
 
 st.divider()
 
+st.subheader("Card Values & Potential Profits")
+
+# Work with a copy of the inventory
+valuation = cards.copy()
+
+# Convert costs and estimated values to numbers
+valuation["purchase_total"] = pd.to_numeric(
+    valuation["purchase_total"], errors="coerce"
+)
+valuation["estimated_value"] = pd.to_numeric(
+    valuation["estimated_value"], errors="coerce"
+)
+valuation["grading_cost"] = pd.to_numeric(
+    valuation["grading_cost"], errors="coerce"
+) if "grading_cost" in valuation.columns else 0
+
+# Estimated selling fees: 13.25% plus $0.40 per sale
+fee_rate = 0.1325
+fixed_fee = 0.40
+
+valuation["potential_profit"] = (
+    valuation["estimated_value"] * (1 - fee_rate)
+    - fixed_fee
+    - valuation["purchase_total"]
+    - valuation["grading_cost"].fillna(0)
+)
+
+# Unknown values or purchase costs mean unknown profit
+valuation.loc[
+    valuation["estimated_value"].isna()
+    | valuation["purchase_total"].isna(),
+    "potential_profit"
+] = float("nan")
+
+st.dataframe(
+    valuation[
+        ["player", "grade", "purchase_total",
+         "estimated_value", "potential_profit"]
+    ].rename(columns={
+        "player": "Player",
+        "grade": "Grade",
+        "purchase_total": "Purchase Cost ($)",
+        "estimated_value": "Estimated Value ($)",
+        "potential_profit": "Potential Profit ($)"
+    }),
+    use_container_width=True,
+    hide_index=True
+)
+
+st.caption(
+    "Potential profit is an estimate using assumed selling fees. "
+    "Shipping, taxes, and other expenses may not be fully included."
+)
 st.subheader("Your Baseball Cards")
 
 st.dataframe(
