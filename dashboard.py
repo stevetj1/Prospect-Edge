@@ -4,7 +4,9 @@ from pathlib import Path
 
 import pandas as pd
 import streamlit as st
-from supabase import create_clientst.set_page_config(
+from supabase import create_client
+
+st.set_page_config(
     page_title="Prospect Edge",
     page_icon="⚾",
     layout="wide",
