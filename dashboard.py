@@ -1,225 +1,162 @@
+"""Prospect Edge — Streamlit inventory dashboard.
 
-import re
+Reads data/inventory.csv, and optionally connects to the Supabase cards table.
+Secrets must be configured in Streamlit Cloud, never in this file.
+"""
+
 from pathlib import Path
-
 import pandas as pd
 import streamlit as st
-from supabase import create_client
 
-st.set_page_config(
-    page_title="Prospect Edge",
-    page_icon="⚾",
-    layout="wide",
-)
-
+st.set_page_config(page_title="Prospect Edge", page_icon="⚾", layout="wide")
 st.title("⚾ Prospect Edge")
 st.caption("Baseball Card Investment Intelligence")
-with st.expander("Database Connection"):
-    try:
-    supabase = create_client(
-        st.secrets["supabase"]["url"],
-        st.secrets["supabase"]["key"],
-    )
-    supabase.table("cards").select("id").limit(1).execute()
-    st.success("Supabase connection successful!")
 
-except Exception as e:
-    st.error(f"Database connection failed: {e}")
-
-inventory_path = Path(__file__).parent / "data" / "inventory.csv"
-
-@st.cache_data
-def load_inventory(path):
-    return pd.read_csv(path, dtype=str).fillna("")
-
-cards = load_inventory(inventory_path)
-
-# Convert money columns into numbers.
-for column in ["purchase_total", "grading_cost", "estimated_value"]:
-    if column not in cards.columns:
-        cards[column] = ""
-    cards[column] = pd.to_numeric(cards[column], errors="coerce")
-
-if "status" not in cards.columns:
-    cards["status"] = "Owned"
-
-cards["status"] = cards["status"].str.strip().str.title()
-
-# Temporary support for sales recorded in notes.
-# We'll replace this with structured sales data later.
-def get_sale_price(row):
-    if row["status"] != "Sold":
-        return float("nan")
-    notes = str(row.get("notes", ""))
-    match = re.search(
-        r"(?:sold.*?for|sale price[: ]+)\s*\$?([\d,]+(?:\.\d+)?)",
-        notes,
-        flags=re.IGNORECASE,
-    )
-    if match:
-        return float(match.group(1).replace(",", ""))
-    return float("nan")
-
-cards["sale_price"] = cards.apply(get_sale_price, axis=1)
-
-cards["total_cost"] = (
-    cards["purchase_total"].fillna(0)
-    + cards["grading_cost"].fillna(0)
-)
-
-owned = cards[cards["status"] == "Owned"].copy()
-sold = cards[cards["status"] == "Sold"].copy()
-
-# A missing valuation is NOT the same as a $0 valuation.
-valued_owned = owned[owned["estimated_value"].notna()]
-unvalued_owned = owned[owned["estimated_value"].isna()]
-
-known_market_value = valued_owned["estimated_value"].sum()
-
-# Only calculate unrealized gains for cards with
-# both a known cost and a known estimated value.
-complete_cost = (
-    valued_owned["purchase_total"].notna()
-    & valued_owned["grading_cost"].notna()
-)
-
-# Grading costs are optional for raw cards.
-raw_cards = valued_owned["grade"].str.lower().eq("raw")
-complete_cost = (
-    valued_owned["purchase_total"].notna()
-    & (valued_owned["grading_cost"].notna() | raw_cards)
-)
-
-eligible = valued_owned[complete_cost]
-unrealized_profit = (
-    eligible["estimated_value"] - eligible["total_cost"]
-).sum()
-
-# Realized profit currently excludes any unrecorded
-# selling expenses. Display this as provisional.
-sold_with_data = sold[
-    sold["sale_price"].notna()
-    & sold["purchase_total"].notna()
+DATA_FILE = Path(__file__).resolve().parent / "data" / "inventory.csv"
+MONEY_COLUMNS = [
+    "purchase_total", "grading_cost", "estimated_value", "sale_price",
+    "selling_fees", "shipping_cost",
 ]
 
-provisional_realized_profit = (
-    sold_with_data["sale_price"]
-    - sold_with_data["total_cost"]
-).sum()
 
-st.subheader("Portfolio Overview")
+def normalize_inventory(df):
+    """Standardize both CSV and Supabase card records for display."""
+    df = df.copy()
+    for name in ["card_id", "player", "year", "set", "card_type", "parallel",
+                 "grade", "purchase_date", "status", "notes"]:
+        if name not in df.columns:
+            df[name] = pd.NA
+    for name in MONEY_COLUMNS:
+        if name not in df.columns:
+            df[name] = pd.NA
+        df[name] = pd.to_numeric(df[name], errors="coerce")
+    return df
+
+
+@st.cache_data(ttl=60)
+def load_csv():
+    if not DATA_FILE.exists():
+        return pd.DataFrame()
+    return pd.read_csv(DATA_FILE, dtype={"card_id": "string"})
+
+
+def load_supabase():
+    """Return (cards dataframe, status message) without breaking the dashboard."""
+    if "supabase" not in st.secrets:
+        return None, "Supabase secrets have not been configured."
+    config = st.secrets["supabase"]
+    url = str(config.get("url", "")).strip()
+    key = str(config.get("key", "")).strip()
+    if not url or not key:
+        return None, "Supabase URL or key is missing."
+    if not url.startswith("https://"):
+        return None, "Supabase URL must start with https://."
+    # The Supabase Python client expects the project URL, not /rest/v1/.
+    url = url.rstrip("/")
+    if url.endswith("/rest/v1"):
+        url = url[:-8]
+    try:
+        from supabase import create_client
+        client = create_client(url, key)
+        response = client.table("cards").select("*").limit(1000).execute()
+        return pd.DataFrame(response.data or []), "Connected to Supabase."
+    except ImportError:
+        return None, "The supabase package is missing from requirements.txt."
+    except Exception as exc:
+        # Never display credentials or raw exception strings in the app.
+        return None, f"Supabase connection failed ({type(exc).__name__}). Check the project URL, key, table and permissions."
+
+
+csv_cards = load_csv()
+supabase_cards, db_message = load_supabase()
+
+with st.sidebar:
+    st.header("Data source")
+    source_options = []
+    if not csv_cards.empty:
+        source_options.append("Inventory CSV")
+    if supabase_cards is not None and not supabase_cards.empty:
+        source_options.append("Supabase")
+    if source_options:
+        source = st.radio("Display cards from", source_options)
+    else:
+        source = None
+    st.divider()
+    if supabase_cards is not None:
+        st.success(db_message)
+    else:
+        st.info(db_message)
+    st.caption("CSV and Supabase are separate data sources. This app does not automatically sync them.")
+
+if source == "Supabase":
+    cards = normalize_inventory(supabase_cards)
+elif source == "Inventory CSV":
+    cards = normalize_inventory(csv_cards)
+else:
+    cards = pd.DataFrame()
+
+if cards.empty:
+    st.warning("No cards to display yet. Add cards to data/inventory.csv or import them into your Supabase cards table.")
+    st.stop()
+
+cost = cards["purchase_total"].fillna(0) + cards["grading_cost"].fillna(0)
+values = cards["estimated_value"].fillna(0)
+known_cost = cards["purchase_total"].notna()
+known_values = cards["estimated_value"].notna()
 
 c1, c2, c3, c4 = st.columns(4)
+c1.metric("Cards", f"{len(cards):,}")
+c2.metric("Known purchase costs", f"${cards['purchase_total'].sum():,.2f}")
+c3.metric("Estimated card values", f"${cards['estimated_value'].sum():,.2f}")
+c4.metric("Missing purchase costs", f"{(~known_cost).sum():,}")
 
-c1.metric("Cards Owned", len(owned))
-c2.metric("Cards Sold", len(sold))
-c3.metric(
-    "Known Owned-Card Value",
-    f"${known_market_value:,.2f}",
-)
-c4.metric(
-    "Provisional Sale Profit",
-    f"${provisional_realized_profit:,.2f}",
-)
+st.caption("Totals exclude blank amounts; estimated values are not verified sale prices. Grading costs are added only where entered.")
 
-st.info(
-    f"{len(unvalued_owned)} owned cards have no market "
-    "value entered. Portfolio value is incomplete. "
-    "Selling fees, shipping and some grading costs "
-    "are not yet included."
-)
+st.subheader("Card inventory")
+search = st.text_input("Search player, set, card ID, or notes", "")
+filtered = cards.copy()
+if search.strip():
+    searchable = filtered.fillna("").astype(str).agg(" ".join, axis=1)
+    filtered = filtered[searchable.str.contains(search.strip(), case=False, regex=False)]
 
-st.divider()
+preferred = ["card_id", "player", "year", "set", "card_type", "parallel", "grade",
+             "purchase_date", "purchase_total", "grading_cost", "estimated_value",
+             "status", "notes", "sale_price", "selling_fees", "shipping_cost", "sale_channel"]
+ordered = [c for c in preferred if c in filtered.columns]
+ordered += [c for c in filtered.columns if c not in ordered and c not in ("id", "created_at")]
+st.dataframe(filtered[ordered], use_container_width=True, hide_index=True)
 
-st.subheader("My Portfolio")
-
-view = st.radio(
-    "Show cards",
-    ["Owned", "Sold", "All"],
-    horizontal=True,
-)
-
-if view == "Owned":
-    displayed = owned
-elif view == "Sold":
-    displayed = sold
-else:
-    displayed = cards
-
-columns = [
-    "card_id", "player", "year", "set",
-    "card_type", "parallel", "grade",
-    "purchase_total", "grading_cost",
-    "estimated_value", "status",
-]
-
-if view != "Owned":
-    columns.append("sale_price")
-
-st.dataframe(
-    displayed[columns],
-    use_container_width=True,
-    hide_index=True,
+st.download_button(
+    "Download displayed inventory (CSV)",
+    data=filtered[ordered].to_csv(index=False).encode("utf-8"),
+    file_name="prospect_edge_inventory_export.csv",
+    mime="text/csv",
 )
 
-st.divider()
-
-st.subheader("Financial Performance")
-
-f1, f2, f3 = st.columns(3)
-
-f1.metric(
-    "Known Purchase Cost — Owned",
-    f"${owned['purchase_total'].sum():,.2f}",
-)
-f2.metric(
-    "Known Market Value — Owned",
-    f"${known_market_value:,.2f}",
-)
-f3.metric(
-    "Provisional Realized Profit",
-    f"${provisional_realized_profit:,.2f}",
-)
-
-st.caption(
-    "Market values are manually entered estimates, "
-    "not live prices. Realized profit is provisional "
-    "until all expenses are recorded."
-)
-
-st.subheader("Cards With Market Values")
-
-st.dataframe(
-    valued_owned[
-        [
-            "card_id", "player", "grade",
-            "purchase_total", "estimated_value",
-        ]
-    ],
-    use_container_width=True,
-    hide_index=True,
-)
-
-st.subheader("Selling Center")
-
-if sold.empty:
-    st.write("No sales recorded yet.")
+st.subheader("Portfolio analysis")
+analysis = cards.copy()
+analysis["total_known_cost"] = cost
+analysis["estimated_profit_before_selling_costs"] = analysis["estimated_value"] - analysis["total_known_cost"]
+complete = analysis[known_cost & known_values]
+if complete.empty:
+    st.info("Add purchase costs and estimated values to see projected gains and losses.")
 else:
     st.dataframe(
-        sold[
-            [
-                "card_id", "player", "purchase_total",
-                "sale_price", "status",
-            ]
-        ],
-        use_container_width=True,
-        hide_index=True,
+        complete[["card_id", "player", "total_known_cost", "estimated_value",
+                  "estimated_profit_before_selling_costs"]],
+        use_container_width=True, hide_index=True,
     )
+    st.caption("Projected profit excludes future selling fees, shipping, taxes, and any unentered grading costs.")
 
-st.divider()
-
-st.subheader("Player Research")
-st.info("Prospect screening and player analysis coming soon.")
-
-st.subheader("Buy Opportunities")
-st.info("Market comparisons and buying alerts coming soon.")
+sold = cards[cards["sale_price"].notna() & cards["purchase_total"].notna()].copy()
+if not sold.empty:
+    sold["net_profit"] = (
+        sold["sale_price"]
+        - sold["purchase_total"]
+        - sold["grading_cost"].fillna(0)
+        - sold["selling_fees"].fillna(0)
+        - sold["shipping_cost"].fillna(0)
+    )
+    st.subheader("Recorded sales")
+    st.metric("Recorded net profit", f"${sold['net_profit'].sum():,.2f}")
+    st.caption("Uses entered sale prices and expenses. Blank expenses are treated as zero, so profit may be overstated.")
