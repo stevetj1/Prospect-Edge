@@ -167,15 +167,15 @@ if page == "Sell Assistant":
     "Other / Unsure",
 ]
 
-card_type_text = str(card_type).lower()
+    card_type_text = str(card_type).lower()
 
-default_autograph = (
+    default_autograph = (
     "Pack-issued autograph"
     if "auto" in card_type_text or "autograph" in card_type_text
     else "Not autographed"
-)
+    )
 
-autograph_type = st.selectbox(
+    autograph_type = st.selectbox(
     "Autograph type",
     autograph_options,
     index=autograph_options.index(default_autograph),
