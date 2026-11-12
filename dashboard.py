@@ -205,20 +205,35 @@ if page == "Sell Assistant":
         # eBay titles are limited to 80 characters.
         title = title[:80].rstrip()
 
-        description = (
-            f"{title}\n\n"
-            f"Player: {player or 'Not specified'}\n"
-            f"Year: {year or 'Not specified'}\n"
-            f"Set: {card_set or 'Not specified'}\n"
-            f"Card type: {card_type or 'Not specified'}\n"
-            f"Parallel: {parallel or 'Not specified'}\n"
-            f"Grade: {grade or 'Not specified'}\n\n"
-            f"Condition: {condition}. "
-            "Please examine all photos carefully to assess "
-            "corners, edges, surface, and centering.\n\n"
-            f"Shipping: {shipping}.\n\n"
-            "Please contact me with any questions."
-        )
+        
+description = (
+    f"Up for sale is a {year or ''} {card_set or ''} "
+    f"{player or ''} {card_type or ''} baseball card.\n\n"
+
+    f"CARD DETAILS\n"
+    f"Player: {player or 'Not specified'}\n"
+    f"Year: {year or 'Not specified'}\n"
+    f"Set: {card_set or 'Not specified'}\n"
+    f"Card Type: {card_type or 'Not specified'}\n"
+    f"Parallel: {parallel or 'Not specified'}\n"
+    f"Grade: {grade or 'Not specified'}\n\n"
+
+    f"COLLECTOR INFORMATION\n"
+    f"A great addition for collectors of {player or 'baseball cards'}, "
+    f"Bowman baseball cards, and modern baseball prospects.\n\n"
+
+    f"CONDITION\n"
+    f"{condition}. Please review all photographs carefully "
+    f"to evaluate the card's appearance and condition.\n\n"
+
+    f"SHIPPING\n"
+    f"{shipping}. The card will be packaged securely "
+    f"to help protect it during transit.\n\n"
+
+    f"Thank you for looking! Please feel free to reach out "
+    f"with any questions."
+)
+
 
         st.subheader("Your Listing Is Ready")
         st.text_input("eBay title — copy this", value=title)
