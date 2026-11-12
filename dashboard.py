@@ -183,7 +183,15 @@ if page == "Sell Assistant":
         "Shipping preference",
         ["Buyer pays shipping", "Free shipping"],
     )
-
+    description_style = st.selectbox(
+        "Listing description style",
+        [
+            "Professional",
+            "Quick & Clean",
+            "Premium Collector",
+        ],
+        help="Choose how detailed your eBay listing will be.",
+    )
     if st.button("✨ Generate My Listing", type="primary"):
         details = [
             year, card_set, player, card_type, parallel, grade
