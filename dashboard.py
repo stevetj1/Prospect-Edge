@@ -99,6 +99,137 @@ if cards.empty:
     st.warning("No cards to display yet. Add cards to data/inventory.csv or import them into your Supabase cards table.")
     st.stop()
 
+# -----------------------------------------
+# Prospect Edge — Sell Assistant V1
+# -----------------------------------------
+
+with st.sidebar:
+    st.divider()
+    page = st.radio(
+        "Prospect Edge tools",
+        ["Collection Dashboard", "Sell Assistant"],
+    )
+
+if page == "Sell Assistant":
+    st.header("✨ Sell Assistant")
+    st.write(
+        "Turn a card from your collection into an eBay-ready "
+        "listing in just a few clicks."
+    )
+
+    available = cards.reset_index(drop=True).copy()
+
+    def card_label(index):
+        card = available.iloc[index]
+
+        def show(field):
+            value = card.get(field)
+            return str(value).strip() if pd.notna(value) else ""
+
+        parts = [
+            show("player"),
+            show("year"),
+            show("set"),
+            show("card_type"),
+            show("parallel"),
+            show("grade"),
+        ]
+        return " | ".join(part for part in parts if part)
+
+    selected_index = st.selectbox(
+        "Choose a card from your collection",
+        options=list(range(len(available))),
+        format_func=card_label,
+    )
+
+    card = available.iloc[selected_index]
+
+    def card_field(name):
+        value = card.get(name)
+        return str(value).strip() if pd.notna(value) else ""
+
+    st.subheader("Verify your card details")
+
+    player = st.text_input("Player", value=card_field("player"))
+    year = st.text_input("Year", value=card_field("year"))
+    card_set = st.text_input("Set", value=card_field("set"))
+    card_type = st.text_input(
+        "Card type", value=card_field("card_type")
+    )
+    parallel = st.text_input(
+        "Parallel", value=card_field("parallel")
+    )
+    grade = st.text_input("Grade", value=card_field("grade"))
+
+    condition = st.selectbox(
+        "Condition",
+        ["See photos", "Near mint", "Excellent", "Very good"],
+    )
+
+    strategy = st.radio(
+        "What's your selling goal?",
+        ["Quick Sale", "Balanced", "Maximum Return"],
+        horizontal=True,
+    )
+
+    asking_price = st.number_input(
+        "Your asking price ($)",
+        min_value=0.0,
+        value=0.0,
+        step=1.0,
+    )
+
+    shipping = st.selectbox(
+        "Shipping preference",
+        ["Buyer pays shipping", "Free shipping"],
+    )
+
+    if st.button("✨ Generate My Listing", type="primary"):
+        details = [
+            year, card_set, player, card_type, parallel, grade
+        ]
+        title = " ".join(
+            str(item).strip()
+            for item in details
+            if str(item).strip()
+        )
+
+        # eBay titles are limited to 80 characters.
+        title = title[:80].rstrip()
+
+        description = (
+            f"{title}\n\n"
+            f"Player: {player or 'Not specified'}\n"
+            f"Year: {year or 'Not specified'}\n"
+            f"Set: {card_set or 'Not specified'}\n"
+            f"Card type: {card_type or 'Not specified'}\n"
+            f"Parallel: {parallel or 'Not specified'}\n"
+            f"Grade: {grade or 'Not specified'}\n\n"
+            f"Condition: {condition}. "
+            "Please examine all photos carefully to assess "
+            "corners, edges, surface, and centering.\n\n"
+            f"Shipping: {shipping}.\n\n"
+            "Please contact me with any questions."
+        )
+
+        st.subheader("Your Listing Is Ready")
+        st.text_input("eBay title — copy this", value=title)
+        st.text_area(
+            "eBay description — copy this",
+            value=description,
+            height=280,
+        )
+        st.metric("Your asking price", f"${asking_price:,.2f}")
+        st.caption(f"Selling strategy: {strategy}")
+
+        st.info(
+            "Review all details and card photos before publishing. "
+            "Market-based price recommendations and AI-enhanced "
+            "writing are coming in a future version."
+        )
+
+    st.stop()
+
 cost = cards["purchase_total"].fillna(0) + cards["grading_cost"].fillna(0)
 values = cards["estimated_value"].fillna(0)
 known_cost = cards["purchase_total"].notna()
