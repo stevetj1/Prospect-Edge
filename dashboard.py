@@ -160,11 +160,27 @@ if page == "Sell Assistant":
         "Parallel", value=card_field("parallel")
     )
     grade = st.text_input("Grade", value=card_field("grade"))
-    autograph_type = st.selectbox(
+    autograph_options = [
+    "Not autographed",
+    "Pack-issued autograph",
+    "In-person autograph",
+    "Other / Unsure",
+]
+
+card_type_text = str(card_type).lower()
+
+default_autograph = (
+    "Pack-issued autograph"
+    if "auto" in card_type_text or "autograph" in card_type_text
+    else "Not autographed"
+)
+
+autograph_type = st.selectbox(
     "Autograph type",
-    ["Not autographed", "Pack-issued autograph", "In-person autograph", "Other / Unsure"],
+    autograph_options,
+    index=autograph_options.index(default_autograph),
     key=f"autograph_type_{selected_index}",
-    )
+)
     condition = st.selectbox(
         "Condition",
         ["See photos", "Near mint", "Excellent", "Very good"],
