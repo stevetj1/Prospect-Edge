@@ -209,7 +209,12 @@ if page == "Sell Assistant":
         title = title[:80].rstrip()
 
         
-        
+        autograph_note = {
+            "Not autographed": "No autograph.",
+            "Pack-issued autograph": "Features an original pack-issued autograph.",
+            "In-person autograph": "Features an in-person autograph. Authentication details should be verified.",
+            "Other / Unsure": "Autograph details should be verified."
+        }.get(autograph_type, "")
         if description_style == "Quick & Clean":
             description = (
                 f"{year} {card_set} {player} {card_type}\n"
