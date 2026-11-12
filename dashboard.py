@@ -175,7 +175,7 @@ default_autograph = (
     else "Not autographed"
 )
 
-    autograph_type = st.selectbox(
+autograph_type = st.selectbox(
     "Autograph type",
     autograph_options,
     index=autograph_options.index(default_autograph),
