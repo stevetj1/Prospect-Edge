@@ -206,7 +206,7 @@ if page == "Sell Assistant":
         title = title[:80].rstrip()
 
         
-description = (
+        description = (
     f"Up for sale is a {year or ''} {card_set or ''} "
     f"{player or ''} {card_type or ''} baseball card.\n\n"
 
@@ -232,7 +232,7 @@ description = (
 
     f"Thank you for looking! Please feel free to reach out "
     f"with any questions."
-)
+        )
 
 
         st.subheader("Your Listing Is Ready")
