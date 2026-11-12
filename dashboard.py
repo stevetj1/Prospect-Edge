@@ -206,33 +206,59 @@ if page == "Sell Assistant":
         title = title[:80].rstrip()
 
         
-        description = (
-    f"Up for sale is a {year or ''} {card_set or ''} "
-    f"{player or ''} {card_type or ''} baseball card.\n\n"
+        
+        if description_style == "Quick & Clean":
+            description = (
+                f"{year} {card_set} {player} {card_type}\n"
+                f"Parallel: {parallel or 'Base'}\n"
+                f"Grade: {grade or 'Ungraded'}\n\n"
+                f"Condition: {condition}\n"
+                f"Please review photos for condition.\n\n"
+                f"Shipping: {shipping}. Packaged securely."
+            )
 
-    f"CARD DETAILS\n"
-    f"Player: {player or 'Not specified'}\n"
-    f"Year: {year or 'Not specified'}\n"
-    f"Set: {card_set or 'Not specified'}\n"
-    f"Card Type: {card_type or 'Not specified'}\n"
-    f"Parallel: {parallel or 'Not specified'}\n"
-    f"Grade: {grade or 'Not specified'}\n\n"
+        elif description_style == "Premium Collector":
+            description = (
+                f"FEATURED COLLECTOR CARD\n\n"
+                f"Offered for sale: {year} {card_set} "
+                f"{player} {card_type}.\n\n"
+                f"CARD INFORMATION\n"
+                f"Player: {player}\n"
+                f"Year: {year}\n"
+                f"Set: {card_set}\n"
+                f"Card Type: {card_type}\n"
+                f"Parallel: {parallel or 'Base'}\n"
+                f"Grade: {grade or 'Ungraded'}\n\n"
+                f"COLLECTOR APPEAL\n"
+                f"An opportunity to add this {player} card "
+                f"to your personal collection.\n\n"
+                f"CONDITION\n"
+                f"{condition}. Please examine the photos "
+                f"for details of the card's appearance.\n\n"
+                f"SHIPPING\n"
+                f"{shipping}. Carefully packaged for transit.\n\n"
+                f"Thank you for considering this card!"
+            )
 
-    f"COLLECTOR INFORMATION\n"
-    f"A great addition for collectors of {player or 'baseball cards'}, "
-    f"Bowman baseball cards, and modern baseball prospects.\n\n"
-
-    f"CONDITION\n"
-    f"{condition}. Please review all photographs carefully "
-    f"to evaluate the card's appearance and condition.\n\n"
-
-    f"SHIPPING\n"
-    f"{shipping}. The card will be packaged securely "
-    f"to help protect it during transit.\n\n"
-
-    f"Thank you for looking! Please feel free to reach out "
-    f"with any questions."
-        )
+        else:
+            description = (
+                f"Available for purchase: {year} {card_set} "
+                f"{player} {card_type} baseball card.\n\n"
+                f"CARD DETAILS\n"
+                f"Player: {player}\n"
+                f"Year: {year}\n"
+                f"Set: {card_set}\n"
+                f"Card Type: {card_type}\n"
+                f"Parallel: {parallel or 'Base'}\n"
+                f"Grade: {grade or 'Ungraded'}\n\n"
+                f"CONDITION\n"
+                f"{condition}. Please review all photographs "
+                f"carefully before purchasing.\n\n"
+                f"SHIPPING\n"
+                f"{shipping}. The card will be packaged "
+                f"securely to help protect it in transit.\n\n"
+                f"Questions are welcome. Thank you for looking!"
+            )
 
 
         st.subheader("Your Listing Is Ready")
