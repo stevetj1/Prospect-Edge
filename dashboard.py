@@ -163,6 +163,7 @@ if page == "Sell Assistant":
     autograph_type = st.selectbox(
     "Autograph type",
     ["Not autographed", "Pack-issued autograph", "In-person autograph", "Other / Unsure"]
+    key=f"autograph_type_{selected_index}",
     )
     condition = st.selectbox(
         "Condition",
