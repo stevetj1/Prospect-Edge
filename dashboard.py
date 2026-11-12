@@ -175,12 +175,12 @@ default_autograph = (
     else "Not autographed"
 )
 
-autograph_type = st.selectbox(
+    autograph_type = st.selectbox(
     "Autograph type",
     autograph_options,
     index=autograph_options.index(default_autograph),
     key=f"autograph_type_{selected_index}",
-)
+    )
     condition = st.selectbox(
         "Condition",
         ["See photos", "Near mint", "Excellent", "Very good"],
