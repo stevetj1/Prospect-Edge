@@ -162,7 +162,7 @@ if page == "Sell Assistant":
     grade = st.text_input("Grade", value=card_field("grade"))
     autograph_type = st.selectbox(
     "Autograph type",
-    ["Not autographed", "Pack-issued autograph", "In-person autograph", "Other / Unsure"]
+    ["Not autographed", "Pack-issued autograph", "In-person autograph", "Other / Unsure"],
     key=f"autograph_type_{selected_index}",
     )
     condition = st.selectbox(
