@@ -100,212 +100,194 @@ if cards.empty:
     st.stop()
 
 # -----------------------------------------
-# Prospect Edge — Sell Assistant V1
+# Prospect Edge — Sell Assistant V2
 # -----------------------------------------
 
 with st.sidebar:
     st.divider()
-    page = st.radio(
-        "Prospect Edge tools",
-        ["Collection Dashboard", "Sell Assistant"],
-    )
+    page = st.radio("Prospect Edge tools", ["Collection Dashboard", "Sell Assistant"])
+
+
+def clean_value(value):
+    """Avoid showing pandas missing-value placeholders in listing text."""
+    if value is None:
+        return ""
+    try:
+        if pd.isna(value):
+            return ""
+    except (TypeError, ValueError):
+        pass
+    return str(value).strip()
+
+
+def known_autograph_type(card):
+    """Only preselect a specific autograph type when inventory explicitly says so."""
+    explicit = clean_value(card.get("autograph_type")).lower()
+    if explicit in ("pack-issued autograph", "pack issued", "factory auto", "certified auto"):
+        return "Pack-issued autograph"
+    if explicit in ("in-person autograph", "in person", "ip auto", "in-person auto"):
+        return "In-person autograph"
+    if explicit in ("not autographed", "none", "no"):
+        return "Not autographed"
+    if explicit:
+        return "Other / Unsure"
+    # Card type alone cannot establish whether a signature was pack-issued.
+    type_text = clean_value(card.get("card_type")).lower()
+    notes_text = clean_value(card.get("notes")).lower()
+    if any(word in type_text for word in ("auto", "autograph", "signed")) or any(
+        word in notes_text for word in ("autograph", "signed", "auto")
+    ):
+        return "Other / Unsure"
+    return "Not autographed"
+
+
+def listing_title(year, card_set, player, card_type, parallel, grade, autograph_type):
+    parts = [year, card_set, player, card_type, parallel, grade]
+    # Do not duplicate autograph terms already present in the card type.
+    if autograph_type == "In-person autograph":
+        parts.append("In-Person Auto")
+    elif autograph_type == "Pack-issued autograph":
+        parts.append("Auto")
+    elif autograph_type == "Other / Unsure":
+        parts.append("Auto Unverified")
+    title = " ".join(clean_value(part) for part in parts if clean_value(part))
+    # eBay title maximum is 80 characters; trim at a word boundary when possible.
+    if len(title) > 80:
+        title = title[:80].rsplit(" ", 1)[0]
+    return title
+
 
 if page == "Sell Assistant":
     st.header("✨ Sell Assistant")
-    st.write(
-        "Turn a card from your collection into an eBay-ready "
-        "listing in just a few clicks."
-    )
-
-    available = cards.reset_index(drop=True).copy()
+    st.write("Create a draft eBay listing from your collection. Verify the card before publishing.")
+    available = cards.reset_index(drop=True)
 
     def card_label(index):
-        card = available.iloc[index]
-
-        def show(field):
-            value = card.get(field)
-            return str(value).strip() if pd.notna(value) else ""
-
-        parts = [
-            show("player"),
-            show("year"),
-            show("set"),
-            show("card_type"),
-            show("parallel"),
-            show("grade"),
-        ]
-        return " | ".join(part for part in parts if part)
+        row = available.iloc[index]
+        fields = ("player", "year", "set", "card_type", "parallel", "grade")
+        return " | ".join(clean_value(row.get(field)) for field in fields if clean_value(row.get(field)))
 
     selected_index = st.selectbox(
         "Choose a card from your collection",
         options=list(range(len(available))),
         format_func=card_label,
     )
-
     card = available.iloc[selected_index]
 
     def card_field(name):
-        value = card.get(name)
-        return str(value).strip() if pd.notna(value) else ""
+        return clean_value(card.get(name))
 
     st.subheader("Verify your card details")
+    st.caption("Values come from your inventory, not from an automated card identification service.")
+    player = st.text_input("Player", value=card_field("player"), key=f"player_{selected_index}")
+    year = st.text_input("Year", value=card_field("year"), key=f"year_{selected_index}")
+    card_set = st.text_input("Set", value=card_field("set"), key=f"set_{selected_index}")
+    card_type = st.text_input("Card type", value=card_field("card_type"), key=f"card_type_{selected_index}")
+    parallel = st.text_input("Parallel", value=card_field("parallel"), key=f"parallel_{selected_index}")
+    grade = st.text_input("Grade", value=card_field("grade"), key=f"grade_{selected_index}")
 
-    player = st.text_input("Player", value=card_field("player"))
-    year = st.text_input("Year", value=card_field("year"))
-    card_set = st.text_input("Set", value=card_field("set"))
-    card_type = st.text_input(
-        "Card type", value=card_field("card_type")
-    )
-    parallel = st.text_input(
-        "Parallel", value=card_field("parallel")
-    )
-    grade = st.text_input("Grade", value=card_field("grade"))
     autograph_options = [
-    "Not autographed",
-    "Pack-issued autograph",
-    "In-person autograph",
-    "Other / Unsure",
-]
-
-    card_type_text = str(card_type).lower()
-
-    default_autograph = (
-    "Pack-issued autograph"
-    if "auto" in card_type_text or "autograph" in card_type_text
-    else "Not autographed"
-    )
-
+        "Not autographed", "Pack-issued autograph", "In-person autograph", "Other / Unsure"
+    ]
+    default_autograph = known_autograph_type(card)
     autograph_type = st.selectbox(
-    "Autograph type",
-    autograph_options,
-    index=autograph_options.index(default_autograph),
-    key=f"autograph_type_{selected_index}",
+        "Autograph type",
+        autograph_options,
+        index=autograph_options.index(default_autograph),
+        key=f"autograph_type_{selected_index}",
+        help="Pack-issued means the card was originally issued with the signature. In-person means it was signed separately.",
+    )
+    authentication = st.text_input(
+        "Autograph authentication (optional)",
+        value=card_field("autograph_authentication"),
+        key=f"authentication_{selected_index}",
+        placeholder="e.g., PSA/DNA authenticated — only if verified",
     )
     condition = st.selectbox(
-        "Condition",
-        ["See photos", "Near mint", "Excellent", "Very good"],
+        "Condition", ["See photos", "Near mint", "Excellent", "Very good"],
+        key=f"condition_{selected_index}",
     )
-
     strategy = st.radio(
-        "What's your selling goal?",
-        ["Quick Sale", "Balanced", "Maximum Return"],
-        horizontal=True,
+        "What's your selling goal?", ["Quick Sale", "Balanced", "Maximum Return"],
+        horizontal=True, key=f"strategy_{selected_index}",
     )
-
     asking_price = st.number_input(
-        "Your asking price ($)",
-        min_value=0.0,
-        value=0.0,
-        step=1.0,
+        "Your asking price ($)", min_value=0.0, value=0.0, step=1.0,
+        key=f"asking_price_{selected_index}",
     )
-
     shipping = st.selectbox(
-        "Shipping preference",
-        ["Buyer pays shipping", "Free shipping"],
+        "Shipping preference", ["Buyer pays shipping", "Free shipping"],
+        key=f"shipping_{selected_index}",
     )
     description_style = st.selectbox(
         "Listing description style",
-        [
-            "Professional",
-            "Quick & Clean",
-            "Premium Collector",
-        ],
-        help="Choose how detailed your eBay listing will be.",
+        ["Professional", "Quick & Clean", "Premium Collector"],
+        key=f"description_style_{selected_index}",
     )
+
     if st.button("✨ Generate My Listing", type="primary"):
-        details = [
-            year, card_set, player, card_type, parallel, grade
-        ]
-        title = " ".join(
-            str(item).strip()
-            for item in details
-            if str(item).strip()
-        )
-
-        # eBay titles are limited to 80 characters.
-        title = title[:80].rstrip()
-
-        
-        autograph_note = {
-            "Not autographed": "No autograph.",
-            "Pack-issued autograph": "Features an original pack-issued autograph.",
-            "In-person autograph": "Features an in-person autograph. Authentication details should be verified.",
-            "Other / Unsure": "Autograph details should be verified."
-        }.get(autograph_type, "")
-        if description_style == "Quick & Clean":
-            description = (
-                f"{year} {card_set} {player} {card_type}\n"
-                f"Parallel: {parallel or 'Base'}\n"
-                f"Grade: {grade or 'Ungraded'}\n\n"
-                f"Autograph: {autograph_note}\n\n"
-                f"Condition: {condition}\n"
-                f"Please review photos for condition.\n\n"
-                f"Shipping: {shipping}. Packaged securely."
-            )
-
-        elif description_style == "Premium Collector":
-            description = (
-                f"FEATURED COLLECTOR CARD\n\n"
-                f"Offered for sale: {year} {card_set} "
-                f"{player} {card_type}.\n\n"
-                f"CARD INFORMATION\n"
-                f"Player: {player}\n"
-                f"Year: {year}\n"
-                f"Set: {card_set}\n"
-                f"Card Type: {card_type}\n"
-                f"Parallel: {parallel or 'Base'}\n"
-                f"Grade: {grade or 'Ungraded'}\n\n"
-                f"Autograph: {autograph_note}\n\n"
-                f"COLLECTOR APPEAL\n"
-                f"An opportunity to add this {player} card "
-                f"to your personal collection.\n\n"
-                f"CONDITION\n"
-                f"{condition}. Please examine the photos "
-                f"for details of the card's appearance.\n\n"
-                f"SHIPPING\n"
-                f"{shipping}. Carefully packaged for transit.\n\n"
-                f"Thank you for considering this card!"
-            )
-
+        missing = [label for label, value in (
+            ("Player", player), ("Year", year), ("Set", card_set),
+            ("Card type", card_type), ("Grade/raw status", grade)
+        ) if not value.strip()]
+        if missing:
+            st.error("Please verify these fields before generating: " + ", ".join(missing))
         else:
-            description = (
-                f"Available for purchase: {year} {card_set} "
-                f"{player} {card_type} baseball card.\n\n"
-                f"CARD DETAILS\n"
-                f"Player: {player}\n"
-                f"Year: {year}\n"
-                f"Set: {card_set}\n"
-                f"Card Type: {card_type}\n"
-                f"Parallel: {parallel or 'Base'}\n"
-                f"Grade: {grade or 'Ungraded'}\n\n"
-                f"Autograph: {autograph_note}\n\n"
-                f"CONDITION\n"
-                f"{condition}. Please review all photographs "
-                f"carefully before purchasing.\n\n"
-                f"SHIPPING\n"
-                f"{shipping}. The card will be packaged "
-                f"securely to help protect it in transit.\n\n"
-                f"Questions are welcome. Thank you for looking!"
-            )
+            if autograph_type == "Other / Unsure":
+                st.warning("Autograph type is uncertain. Confirm whether this is a pack-issued or in-person signature before publishing.")
+            if not parallel.strip():
+                st.warning("Parallel is blank. Confirm whether this is a base card or a specific parallel.")
+            if authentication.strip() and autograph_type == "Not autographed":
+                st.warning("Authentication details were entered, but autograph type is set to Not autographed.")
 
+            title = listing_title(year, card_set, player, card_type, parallel, grade, autograph_type)
+            autograph_note = {
+                "Not autographed": "No autograph indicated.",
+                "Pack-issued autograph": "Pack-issued autograph (verify against the manufacturer's checklist).",
+                "In-person autograph": "In-person autograph (signed separately from the original card issue).",
+                "Other / Unsure": "Autograph origin not confirmed; verify before listing.",
+            }[autograph_type]
+            if authentication.strip() and autograph_type != "Not autographed":
+                autograph_note += f" Authentication: {authentication.strip()} (seller to verify)."
 
-        st.subheader("Your Listing Is Ready")
-        st.text_input("eBay title — copy this", value=title)
-        st.text_area(
-            "eBay description — copy this",
-            value=description,
-            height=280,
-        )
-        st.metric("Your asking price", f"${asking_price:,.2f}")
-        st.caption(f"Selling strategy: {strategy}")
-
-        st.info(
-            "Review all details and card photos before publishing. "
-            "Market-based price recommendations and AI-enhanced "
-            "writing are coming in a future version."
-        )
-
+            identity = " ".join(x for x in [year, card_set, player, card_type] if x.strip())
+            detail_lines = [
+                f"Player: {player}", f"Year: {year}", f"Set: {card_set}",
+                f"Card type: {card_type}",
+                f"Parallel: {parallel if parallel.strip() else 'Not verified'}",
+                f"Grade: {grade}", f"Autograph: {autograph_note}",
+            ]
+            if description_style == "Quick & Clean":
+                description = (
+                    identity + "\n" + "\n".join(detail_lines[4:])
+                    + f"\n\nCondition: {condition}. Please review photos."
+                    + f"\nShipping: {shipping}. Packaged securely."
+                )
+            elif description_style == "Premium Collector":
+                description = (
+                    "FEATURED COLLECTOR CARD\n\n" + identity + "\n\n"
+                    + "CARD DETAILS\n" + "\n".join(detail_lines)
+                    + f"\n\nCONDITION\n{condition}. Please examine all photos carefully."
+                    + f"\n\nSHIPPING\n{shipping}. Carefully packaged for transit."
+                    + "\n\nThank you for considering this card."
+                )
+            else:
+                description = (
+                    "Available for purchase: " + identity + " baseball card.\n\n"
+                    + "CARD DETAILS\n" + "\n".join(detail_lines)
+                    + f"\n\nCONDITION\n{condition}. Please review all photographs carefully before purchasing."
+                    + f"\n\nSHIPPING\n{shipping}. The card will be packaged securely for transit."
+                    + "\n\nQuestions are welcome. Thank you for looking!"
+                )
+            st.subheader("Your Listing Is Ready — Draft")
+            st.text_input("eBay title — copy this", value=title)
+            st.caption(f"{len(title)}/80 characters")
+            st.text_area("eBay description — copy this", value=description, height=320)
+            st.metric("Your asking price", f"${asking_price:,.2f}")
+            st.caption(f"Selling strategy: {strategy}. Asking price is user-entered, not market-verified.")
+            st.info("Draft only. Check exact card identity, autograph origin, grading, parallel, photos and price before publishing. No live sold comps are connected yet.")
     st.stop()
+
 
 cost = cards["purchase_total"].fillna(0) + cards["grading_cost"].fillna(0)
 values = cards["estimated_value"].fillna(0)
