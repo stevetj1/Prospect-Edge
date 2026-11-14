@@ -44,16 +44,48 @@ def image_part(upload):
 
 
 def scan(front, back):
-    prompt = """Analyze these baseball trading-card photos. Return ONLY a JSON object with string keys:
-player, year, set, card_number, card_type, parallel, serial_number, grade,
-autograph_type, autograph_authentication, notes, uncertainties.
-Use empty strings for unknowns. autograph_type must be one of: Not autographed,
-Pack-issued autograph, In-person autograph, Other / Unsure.
-Do not guess a rare parallel, serial numbering, grading label, autograph origin,
-or authentication. Do not infer a PSA grade without visible slab evidence.
-If photos do not establish a fact, leave it blank or use Other / Unsure.
-List ambiguities in uncertainties. This is a visual suggestion, NOT a verified
-checklist match. No invented facts or market values."""
+    prompt = """You are a conservative baseball-card photo transcription assistant.
+Inspect the FRONT and BACK independently before combining findings. Return ONLY
+one JSON object with these STRING keys: player, year, set, card_number,
+card_type, parallel, serial_number, grade, autograph_type,
+autograph_authentication, notes, uncertainties.
+
+ACCURACY RULES (more important than filling fields):
+1. TRANSCRIBE card_number from printed text, preferably the back. Preserve the
+   EXACT letters, digits and hyphens. Do not infer a number from a checklist.
+   Distinguish BCP from BOP, 0 from O, and 1 from I. If any character is unclear,
+   leave card_number empty and explicitly say which characters need inspection.
+2. Distinguish a 1st Bowman designation from an MLB Rookie Card (RC) logo.
+   A 1st Bowman is NOT automatically an MLB rookie card. Use 'Rookie Card'
+   only when clearly supported by visible evidence; do not infer from year.
+3. Never invent a parallel, print run, serial stamp, or grade. A parallel's
+   apparent color alone is insufficient for a definitive identification.
+   Transcribe serial numbering exactly as visible, e.g. '01/10'.
+4. For grade, include company and grade together (e.g. 'PSA 9') ONLY when
+   both are legible on the slab. A protective holder is not a grading slab.
+5. Autograph type MUST be exactly one of: Not autographed,
+   Pack-issued autograph, In-person autograph, Other / Unsure.
+   'Pack-issued autograph' requires visible manufacturer certification or
+   unmistakable factory autograph-card evidence; a blue signature alone is
+   NOT enough. A non-autograph checklist card with an added signature and
+   third-party autograph authentication may be in-person/aftermarket, but
+   don't claim certainty from third-party certification alone. If origin is
+   not proven, choose Other / Unsure and explain the ambiguity.
+6. Separate AUTHENTICATION from ORIGIN. JSA, PSA/DNA and Beckett/BAS
+   certify signatures (subject to actual verification); they do NOT by
+   themselves establish a pack-issued autograph. If a certificate or sticker
+   is pictured, transcribe its agency and number in notes, and state
+   'visible, not independently verified' in autograph_authentication.
+   Do NOT claim a certificate number has been checked in an external database.
+7. Before returning JSON, check for contradictions: third-party signature
+   certificate vs claimed pack-issued origin; 'Rookie Card' without an RC
+   logo; grade without grading slab; conflicting front/back numbers.
+   When conflicting or uncertain, prefer blank / Other / Unsure and describe
+   the precise question in uncertainties.
+8. No web lookup or checklist validation has occurred. Do not invent
+   market prices, rarity, provenance, or authentication results.
+Use empty strings for genuinely unknown fields. In uncertainties, provide
+specific checks the seller should perform. Keep notes factual and concise."""
     content = [{"type": "text", "text": prompt}, image_part(front)]
     if back is not None:
         content.append(image_part(back))
@@ -65,7 +97,41 @@ checklist match. No invented facts or market values."""
         temperature=0,
     )
     parsed = json.loads(result.choices[0].message.content)
-    return {k: str(parsed.get(k, "") or "") for k in FIELDS}
+    if not isinstance(parsed, dict):
+        raise ValueError("AI returned an unexpected response. Please try again.")
+    details = {k: str(parsed.get(k, "") or "").strip() for k in FIELDS}
+    return validate_scan(details)
+
+
+
+def validate_scan(details):
+    """Conservative post-scan checks; these flag ambiguity, not authenticate cards."""
+    flags = []
+    origin = details["autograph_type"]
+    valid_origins = {"Not autographed", "Pack-issued autograph", "In-person autograph", "Other / Unsure"}
+    if origin not in valid_origins:
+        details["autograph_type"] = "Other / Unsure"
+        flags.append("Autograph origin could not be classified reliably.")
+
+    number = details["card_number"]
+    # Never silently 'fix' a potentially misread printed card number.
+    if number and not re.fullmatch(r"[A-Za-z0-9]+(?:[-./][A-Za-z0-9]+)*", number):
+        flags.append("Card number has unusual characters; compare it carefully with the back.")
+    if number and re.search(r"\bB[CO]P[-]?[0-9]+\b", number, re.I):
+        flags.append("Confirm each letter of this Bowman-style card number against the printed back (for example, BCP versus BOP).")
+
+    auth = details["autograph_authentication"]
+    third_party = bool(re.search(r"\b(?:JSA|PSA\s*/\s*DNA|BAS|Beckett\s+Authentication)\b", auth, re.I))
+    if third_party and not re.search(r"not independently verified|unverified", auth, re.I):
+        details["autograph_authentication"] = auth + " (visible; not independently verified)"
+    if third_party and details["autograph_type"] == "Pack-issued autograph":
+        details["autograph_type"] = "Other / Unsure"
+        flags.append("Third-party autograph authentication does not prove a pack-issued signature. Verify the card's factory autograph status against a trusted checklist.")
+    if details["grade"] and not re.search(r"\b(?:PSA|BGS|SGC|CGC|CSG)\b", details["grade"], re.I):
+        flags.append("Grading company is missing or unclear; verify the slab label before listing a grade.")
+    if flags:
+        details["uncertainties"] = "\n".join(filter(None, [details["uncertainties"], *flags]))
+    return details
 
 
 def write_listing(details, style, shipping, condition):
@@ -73,7 +139,9 @@ def write_listing(details, style, shipping, condition):
 seller-reviewed facts supplied in JSON. Do not invent serial numbers, scarcity,
 rookie status, signature authenticity, manufacturer certification, condition,
 market values, shipping materials, guarantees, or player accomplishments.
-If autograph type is Other / Unsure, do not imply it is authenticated or factory-issued.
+If autograph type is Other / Unsure, do not imply it is factory-issued or in-person.
+A pictured JSA/PSA-DNA/BAS certificate is NOT independent database verification;
+never say 'verified' or 'guaranteed authentic' based solely on a photo.
 If a detail is blank, omit it. If grade is blank, don't assert a grade.
 The seller's condition wording and shipping preference must be respected.
 Avoid excessive hype, emojis, filler and generic marketing slogans.
@@ -99,7 +167,7 @@ condition/photo-review note, and shipping preference. No made-up claims."""
 
 
 FIELDS = ["player", "year", "set", "card_number", "card_type", "parallel", "serial_number", "grade", "autograph_type", "autograph_authentication", "notes", "uncertainties"]
-LABELS = {"player": "Player", "year": "Year", "set": "Set", "card_number": "Card number", "card_type": "Card type", "parallel": "Parallel", "serial_number": "Visible serial number", "grade": "Grade / grading company", "autograph_type": "Autograph type", "autograph_authentication": "Autograph authentication (verified only)", "notes": "Other visible details", "uncertainties": "AI uncertainties / verification needed"}
+LABELS = {"player": "Player", "year": "Year", "set": "Set", "card_number": "Card number", "card_type": "Card type", "parallel": "Parallel", "serial_number": "Visible serial number", "grade": "Grade / grading company", "autograph_type": "Autograph type", "autograph_authentication": "Autograph authentication (visible evidence; check independently)", "notes": "Other visible details", "uncertainties": "AI uncertainties / verification needed"}
 
 if not api_key():
     st.info("To use this lab, configure an OPENAI_API_KEY in your test app's Streamlit secrets. Do not paste an API key into this Python file or the chat.")
@@ -117,7 +185,12 @@ with right:
 if st.button("🔎 Identify Card with AI", disabled=not (front and api_key()), type="primary"):
     try:
         with st.spinner("Reading the card photos..."):
-            st.session_state["ai_scan"] = scan(front, back)
+            new_scan = scan(front, back)
+            # Streamlit widget state persists across scans unless explicitly reset.
+            for field in FIELDS:
+                st.session_state.pop(f"review_{field}", None)
+            st.session_state.pop("scan_confirmed", None)
+            st.session_state["ai_scan"] = new_scan
             st.session_state.pop("ai_listing", None)
         st.success("Visual scan complete. Review and correct every field before generating a listing.")
     except ImportError:
@@ -131,6 +204,8 @@ if "ai_scan" in st.session_state:
     st.divider()
     st.subheader("1. Verify the AI's identification")
     st.warning("This is image interpretation, not database verification. Check the exact set, parallel, autograph origin, serial number and grade against the card and a trusted checklist.")
+    if st.session_state["ai_scan"].get("uncertainties"):
+        st.info("AI verification flags: " + st.session_state["ai_scan"]["uncertainties"])
     reviewed = {}
     for field in FIELDS:
         value = st.session_state["ai_scan"].get(field, "")
@@ -141,7 +216,7 @@ if "ai_scan" in st.session_state:
             reviewed[field] = st.text_area(LABELS[field], value=value, key=f"review_{field}")
         else:
             reviewed[field] = st.text_input(LABELS[field], value=value, key=f"review_{field}")
-    confirmed = st.checkbox("I reviewed the card details against the photographs and corrected any errors.")
+    confirmed = st.checkbox("I reviewed the card details against the photographs and corrected any errors.", key="scan_confirmed")
     st.subheader("2. Generate a listing draft")
     style = st.selectbox("Writing style", ["Professional", "Quick & Clean", "Premium Collector"])
     condition = st.selectbox("Condition wording", ["See photos", "Near mint", "Excellent", "Very good"])
